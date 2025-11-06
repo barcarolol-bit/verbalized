@@ -2,6 +2,8 @@
 
 A minimal browser-based voice-to-text and text-enhancement tool that transcribes audio and refines it using AI.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fbarcarolol-bit%2Fverbalized&env=OPENAI_API_KEY,OLLAMA_API_KEY,OLLAMA_BASE_URL,OLLAMA_MODEL&envDescription=API%20keys%20required%20for%20transcription%20and%20composition&envLink=https%3A%2F%2Fgithub.com%2Fbarcarolol-bit%2Fverbalized%23environment-variables)
+
 ## Overview
 
 Verbalized allows users to record their voice, automatically transcribe the audio using **OpenAI Whisper API**, and then refine the transcript using **Ollama Cloud**. The product emphasizes speed, minimalism, and privacy - no login, database, or persistent storage.
@@ -39,6 +41,17 @@ Verbalized allows users to record their voice, automatically transcribe the audi
 - **Transcription**: OpenAI Whisper API (whisper-1 model)
 - **Composition**: Ollama Cloud API with streaming (gpt-oss:120b-cloud)
 - **Storage**: Browser localStorage for draft persistence
+
+## 🚀 Quick Deploy
+
+### Deploy to Vercel (Recommended - 1 Click!)
+
+Click the button above to deploy to Vercel. You'll need:
+- GitHub account (to import the repository)
+- OpenAI API key
+- Ollama Cloud API key
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment guides including Netlify, Railway, and Render.
 
 ## Getting Started
 
