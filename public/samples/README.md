@@ -38,7 +38,9 @@ ffmpeg -i yourfile.mp3 -t 5 -c:a libopus hello.webm
 ### Why This Matters
 Test audio ensures:
 - MediaRecorder produces valid blobs
-- Whisper transcription works locally
+- OpenAI Whisper transcription API works correctly
 - Audio preview displays correctly
 - File size validation works
+- Two-step workflow (transcribe → compose) functions properly
+
 

@@ -21,9 +21,10 @@ async function checkHealth(endpoint, name) {
 }
 
 async function main() {
+  console.log('Verbalized Health Checks\n');
   console.log('Running health checks...\n');
   
-  await checkHealth('/api/health/transcribe', 'Transcribe (Local Whisper)');
+  await checkHealth('/api/health/transcribe', 'Transcribe (OpenAI Whisper)');
   console.log('');
   await checkHealth('/api/health/compose', 'Compose (Ollama Cloud)');
   
@@ -31,4 +32,5 @@ async function main() {
 }
 
 main();
+
 
