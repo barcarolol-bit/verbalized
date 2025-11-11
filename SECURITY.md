@@ -216,13 +216,32 @@ This document outlines the security improvements implemented for the Verbalized 
 
 ## Testing Recommendations
 
-1. Run CodeQL security scanner
-2. Perform penetration testing
-3. Test rate limiting under load
-4. Verify CSP headers in browser
-5. Test with various file types and sizes
-6. Validate error handling with invalid inputs
-7. Test XSS prevention with malicious payloads
+1. Run CodeQL security scanner: ✅ **0 alerts**
+2. Run dependency audit: ✅ **0 vulnerabilities**
+3. Run security test suite: `npm run test:security`
+4. Test rate limiting under load
+5. Verify CSP headers in browser
+6. Test with various file types and sizes
+7. Validate error handling with invalid inputs
+8. Test XSS prevention with malicious payloads
+
+### Running the Security Test Suite
+
+```bash
+# Start the development server
+npm run dev
+
+# In another terminal, run the security tests
+npm run test:security
+```
+
+The test suite validates:
+- Security headers (CSP, X-Frame-Options, etc.)
+- Rate limiting implementation
+- Input validation
+- XSS prevention
+- Error message sanitization
+- Health endpoint security
 
 ## Compliance Considerations
 
