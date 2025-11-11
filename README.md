@@ -299,6 +299,40 @@ verbalized/
 - Processing time: 2-5 seconds
 - Can re-compose with different pre-prompts without re-transcribing
 
+## Security
+
+Verbalized implements comprehensive security measures to protect users and data:
+
+### Security Features
+
+- **Security Headers**: CSP, X-Frame-Options, X-Content-Type-Options, and more
+- **Rate Limiting**: 30 requests per minute per IP to prevent abuse
+- **Input Validation**: Comprehensive validation on all API endpoints
+- **XSS Prevention**: Proper HTML escaping and DOMPurify integration
+- **Error Sanitization**: No sensitive information leaked in error messages
+- **No Data Storage**: Audio files are processed and immediately deleted
+- **Environment Validation**: Required API keys validated at startup
+
+### Security Testing
+
+```bash
+# Run security test suite
+npm run test:security
+
+# Run dependency audit
+npm audit
+```
+
+### Security Results
+
+- ✅ **CodeQL**: 0 security alerts
+- ✅ **npm audit**: 0 vulnerabilities  
+- ✅ **ESLint**: 0 errors, 0 warnings
+- ✅ **Security Headers**: All recommended headers implemented
+- ✅ **Rate Limiting**: Active on all API endpoints
+
+For detailed security documentation, see [SECURITY.md](./SECURITY.md).
+
 ## Development Philosophy
 
 - Start from the simplest possible working version

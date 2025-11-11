@@ -2,21 +2,112 @@ import { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
+// Maximum request size for composition
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '1mb',
+    },
+  },
+};
+
+// Sanitize error messages to prevent information leakage
+function sanitizeError(error: string): string {
+  const sanitized = error
+    .replace(/sk-[a-zA-Z0-9]+/g, '[REDACTED]')
+    .replace(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]')
+    .replace(/https?:\/\/[^\s]+/g, '[URL]');
+  
+  return sanitized.length > 200 ? sanitized.substring(0, 200) + '...' : sanitized;
+}
+
+// Validate and sanitize transcript input
+function validateTranscript(transcript: unknown): string {
+  if (!transcript || typeof transcript !== "string") {
+    throw new Error("Invalid transcript format");
+  }
+
+  const trimmed = transcript.trim();
+  
+  if (trimmed === "") {
+    throw new Error("Transcript cannot be empty");
+  }
+
+  // Limit transcript length (100KB)
+  if (trimmed.length > 100000) {
+    throw new Error("Transcript too long. Maximum 100,000 characters.");
+  }
+
+  return trimmed;
+}
+
+// Validate and sanitize pre-prompt input
+function validatePrePrompt(prePrompt: unknown): string | undefined {
+  if (!prePrompt) {
+    return undefined;
+  }
+
+  if (typeof prePrompt !== "string") {
+    throw new Error("Invalid pre-prompt format");
+  }
+
+  const trimmed = prePrompt.trim();
+  
+  // Limit pre-prompt length
+  if (trimmed.length > 5000) {
+    throw new Error("Pre-prompt too long. Maximum 5,000 characters.");
+  }
+
+  return trimmed || undefined;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // Parse JSON body
-    const { transcript, prePrompt } = await req.json();
+    // Check Content-Type header
+    const contentType = req.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return new Response(
+        JSON.stringify({ error: "Invalid content type. Expected application/json." }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
-    // Validate transcript
-    if (
-      !transcript ||
-      typeof transcript !== "string" ||
-      transcript.trim() === ""
-    ) {
-      return new Response(JSON.stringify({ error: "Missing transcript" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+    // Parse and validate JSON body
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Validate and sanitize inputs
+    let transcript: string;
+    let prePrompt: string | undefined;
+    
+    try {
+      transcript = validateTranscript(body.transcript);
+      prePrompt = validatePrePrompt(body.prePrompt);
+    } catch (validationError) {
+      const message = validationError instanceof Error 
+        ? validationError.message 
+        : "Invalid input";
+      
+      return new Response(
+        JSON.stringify({ error: message }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Check for Ollama API key
@@ -40,7 +131,7 @@ export async function POST(req: NextRequest) {
 
     // Combine pre-prompt and transcript in user message
     const userMsg = [
-      `Pre prompt: ${prePrompt ? String(prePrompt) : "None"}`,
+      `Pre prompt: ${prePrompt || "None"}`,
       "Transcript:",
       transcript,
     ].join("\n\n");
@@ -65,7 +156,9 @@ export async function POST(req: NextRequest) {
     // Handle API errors
     if (!resp.ok) {
       const raw = await resp.text();
-      return new Response(JSON.stringify({ error: raw }), {
+      const sanitized = sanitizeError(raw);
+      console.error('Ollama API error:', raw); // Log full error server-side
+      return new Response(JSON.stringify({ error: sanitized }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
@@ -131,9 +224,10 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : "Unexpected server error";
-    return new Response(JSON.stringify({ error: message }), {
+    const message = err instanceof Error ? err.message : "Unexpected server error";
+    const sanitized = sanitizeError(message);
+    console.error('Composition error:', err); // Log full error server-side
+    return new Response(JSON.stringify({ error: sanitized }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
