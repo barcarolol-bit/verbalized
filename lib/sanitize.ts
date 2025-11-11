@@ -31,12 +31,22 @@ export function escapeHtml(unsafe: string): string {
 
 /**
  * Sanitize text for safe display (removes any HTML, keeps only text)
+ * Uses a comprehensive approach to handle all edge cases
  */
 export function sanitizeText(text: string): string {
   if (!text) return '';
   
-  // Remove any potential HTML/script tags
-  const cleaned = text.replace(/<[^>]*>/g, '');
+  // Convert to string if needed
+  let cleaned = String(text);
+  
+  // Escape all HTML-sensitive characters in the correct order
+  // IMPORTANT: Escape & first to avoid double-escaping
+  cleaned = cleaned.replace(/&/g, '&amp;');
+  cleaned = cleaned.replace(/</g, '&lt;');
+  cleaned = cleaned.replace(/>/g, '&gt;');
+  cleaned = cleaned.replace(/"/g, '&quot;');
+  cleaned = cleaned.replace(/'/g, '&#x27;');
+  cleaned = cleaned.replace(/\//g, '&#x2F;');
   
   // Limit length to prevent DoS
   const maxLength = 500000; // 500KB
