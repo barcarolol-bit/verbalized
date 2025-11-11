@@ -6,13 +6,13 @@ export async function GET() {
   if (!apiKey) {
     return NextResponse.json({
       ok: false,
-      error: "Missing OPENAI_API_KEY"
-    });
+      error: "Configuration error"
+    }, { status: 500 });
   }
 
   return NextResponse.json({
     ok: true,
-    mode: "openai-whisper-api"
+    service: "transcription"
   });
 }
 

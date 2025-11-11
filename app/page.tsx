@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { MAX_DURATION_SEC } from '@/lib/config';
+import { sanitizeErrorMessage, sanitizeText } from '@/lib/sanitize';
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
 const TARGET_SAMPLE_RATE = 16_000;
@@ -205,34 +206,32 @@ export default function Home() {
   }, [audioURL]);
 
   // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + K to start recording
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        if (!isRecording && browserSupported && !isTranscribing && !isComposing) {
-          handleStartRecording();
-        }
-      }
-      // Ctrl/Cmd + Shift + K to stop recording
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'K') {
-        e.preventDefault();
-        if (isRecording) {
-          handleStopRecording();
-        }
-      }
-      // Ctrl/Cmd + Enter to transcribe
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && audioBlob && !transcript) {
-        e.preventDefault();
-        handleTranscribe();
-      }
-    };
+  const handleStopRecording = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isRecording, browserSupported, isTranscribing, isComposing, audioBlob, transcript]);
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
 
-  const handleStartRecording = async () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
+    setIsRecording(false);
+    toast.success('Recording stopped');
+  }, [isRecording]);
+
+  const handleStartRecording = useCallback(async () => {
     try {
       setTranscript('');
       setFinalText('');
@@ -306,16 +305,7 @@ export default function Home() {
       }, MAX_DURATION_SEC * 1000);
 
     } catch (err) {
-      let errorMessage = 'Recording is not supported in this browser';
-      
-      if (err instanceof Error) {
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          errorMessage = 'Microphone permission denied';
-        } else {
-          errorMessage = err.message;
-        }
-      }
-      
+      const errorMessage = sanitizeErrorMessage(err);
       toast.error(errorMessage);
       setStatus('Error');
       setIsRecording(false);
@@ -325,34 +315,9 @@ export default function Home() {
         streamRef.current = null;
       }
     }
-  };
+  }, [audioURL, handleStopRecording]);
 
-  const handleStopRecording = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-
-    if (recordingIntervalRef.current) {
-      clearInterval(recordingIntervalRef.current);
-      recordingIntervalRef.current = null;
-    }
-
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-
-    setIsRecording(false);
-    toast.success('Recording stopped');
-  };
-
-  const handleTranscribe = async () => {
+  const handleTranscribe = useCallback(async () => {
     setTranscript('');
     setIsTranscribing(true);
 
@@ -401,7 +366,7 @@ export default function Home() {
       }
 
       const data = await response.json();
-      const transcriptText = data?.transcript || '';
+      const transcriptText = sanitizeText(data?.transcript || '');
 
       if (!transcriptText) {
         throw new Error('No transcript returned from server');
@@ -413,14 +378,41 @@ export default function Home() {
       toast.success('Transcription complete!', { id: toastId });
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unexpected error during transcription';
+      const errorMessage = sanitizeErrorMessage(err);
       toast.error(errorMessage, { id: toastId });
       setStatus('Error');
       setIsTranscribing(false);
     }
-  };
+  }, [audioBlob]);
 
-  const handleCompose = async () => {
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + K to start recording
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        if (!isRecording && browserSupported && !isTranscribing && !isComposing) {
+          handleStartRecording();
+        }
+      }
+      // Ctrl/Cmd + Shift + K to stop recording
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'K') {
+        e.preventDefault();
+        if (isRecording) {
+          handleStopRecording();
+        }
+      }
+      // Ctrl/Cmd + Enter to transcribe
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && audioBlob && !transcript) {
+        e.preventDefault();
+        handleTranscribe();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isRecording, browserSupported, isTranscribing, isComposing, audioBlob, transcript, handleStartRecording, handleStopRecording, handleTranscribe]);
+
+  const handleCompose = useCallback(async () => {
     setFinalText('');
     setEditableFinalText('');
     setIsComposing(true);
@@ -472,11 +464,12 @@ export default function Home() {
               try {
                 const json = JSON.parse(data);
                 if (json.content) {
-                  accumulatedText += json.content;
+                  const sanitized = sanitizeText(json.content);
+                  accumulatedText += sanitized;
                   setFinalText(accumulatedText);
                   setEditableFinalText(accumulatedText);
                 }
-              } catch (e) {
+              } catch {
                 // Skip invalid JSON
               }
             }
@@ -493,12 +486,12 @@ export default function Home() {
       toast.success('Text composed successfully!', { id: toastId });
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unexpected error during composition';
+      const errorMessage = sanitizeErrorMessage(err);
       toast.error(errorMessage, { id: toastId });
       setStatus('Error');
       setIsComposing(false);
     }
-  };
+  }, [transcript, prePrompt]);
 
   const handleCopyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(editableFinalText || finalText);
